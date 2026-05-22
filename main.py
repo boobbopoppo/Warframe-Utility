@@ -13,7 +13,7 @@ if "initial_load" not in st.session_state:
 session = oph.login()
 
 if session is None:
-    st.warning("⚠️ **Authentication Required:** Streamlit is currently unable to connect to your `warframe.market` account.")
+    st.warning("⚠️ **Authentication Required:** The Utility is currently unable to connect to your `warframe.market` account.")
     
     st.markdown("""
     This utility needs a **JWT Session Token** to communicate with `warframe.market` on your behalf.
@@ -70,6 +70,7 @@ def sync_slider_to_input(faction_key):
     """Fires when the slider moves -> updates the numeric text box."""
     st.session_state[f"input_{faction_key}"] = st.session_state[f"slide_{faction_key}"]
     oph.save_status_from_state()
+    # oph.modify_posted_quantity(faction_key, floor(st.session_state[f"slide_{faction_key}"] / syndicate_mods.syndicates[faction_key]["cost"]))
 
 def sync_input_to_slider(faction_key, max_val):
     """Fires when values are typed -> clamps the number and moves the slider."""
@@ -80,6 +81,7 @@ def sync_input_to_slider(faction_key, max_val):
     st.session_state[f"slide_{faction_key}"] = clamped_val
     st.session_state[f"input_{faction_key}"] = clamped_val
     oph.save_status_from_state()
+    # oph.modify_posted_quantity(faction_key, floor(clamped_val / syndicate_mods.syndicates[faction_key]["cost"]))
 
 with st.sidebar:
     st.header("Account Profile")
@@ -112,7 +114,14 @@ for faction_key, faction_info in syndicate_mods.syndicates.items():
             chosen_rank = st.selectbox("Rank", options=[0, 1, 2, 3, 4, 5], key=rank_key, on_change=oph.save_status_from_state)
             
         max_standing_allowed = syndicate_mods.RANK_STANDING_LIMITS[chosen_rank]
-        max_mods_listable = max_standing_allowed // mod_cost
+        if slide_key in st.session_state:
+            current_live_standing = st.session_state[slide_key]
+        else:
+            # If it's the very first load of the page, read it from your saved data block
+            current_live_standing = int(saved_data["standing"])
+            st.session_state[slide_key] = current_live_standing
+
+        max_mods_listable = current_live_standing // mod_cost
         
         if slide_key not in st.session_state:
             st.session_state[slide_key] = int(saved_data["standing"])
@@ -127,7 +136,7 @@ for faction_key, faction_info in syndicate_mods.syndicates.items():
         # 2. Main Tracking Slider
         with col_standing:
             st.slider("Available Standing", min_value=0, max_value=max_standing_allowed, key=slide_key, step=1000, on_change=sync_slider_to_input, args=(faction_key,))
-            
+
         # 3. Operations Panel
         with col_controls:
             # Step A: Max listable limit constraint layout input
@@ -145,29 +154,38 @@ for faction_key, faction_info in syndicate_mods.syndicates.items():
             # Step C: Execution Buttons Grouping
             btn_col1, btn_col2 = st.columns(2)
             
+            pub_qty_key = f"pub_qty_{faction_key}"
+
             with btn_col1:
                 if st.button("Publish", key=f"pub_{faction_key}", use_container_width=True):
                     # Pull current state parameters safely
                     curr_standing = st.session_state[slide_key]
                     curr_rank = st.session_state[rank_key]
                     
-                    oph.post_offers_for_all_slugs(
-                        session=session,
-                        syndicate_slug_list=faction_info,
-                        standing=curr_standing,
-                        syndicate_rank=curr_rank
-                    )
+                    currently_posted = oph.get_posted_quantity(faction_key)
+                    if currently_posted + target_listable_qty <= max_mods_listable:
+                        oph.set_posted_quantity(faction_key, currently_posted + target_listable_qty)
+                        oph.post_offers_for_all_slugs(
+                            session=session,
+                            syndicate_slug_list=faction_info,
+                            quantity=currently_posted + target_listable_qty,
+                            syndicate_rank=curr_rank
+                        )
+                    else:
+                        st.error("Cannot publish more offers than your current standing allows. Please adjust the quantity or increase your standing.")
+                        
+                    
+
+                    
+                    
+                    
             
             with btn_col2:
                 if st.button("Sold", key=f"sold_{faction_key}", type="secondary", use_container_width=True):
-                    # Dynamically collect items available at current rank to process selection
                     available_mods = oph.list_available_syndicate_mods(faction_info, st.session_state[rank_key])
                     
                     if available_mods:
-                        # Grab the first available mod as a placeholder item slug for validation
                         sample_slug = available_mods[0] 
-                        
-                        # Find which factions can afford the deduction
                         status_data = oph.load_status()
                         valid_factions = []
                         
@@ -178,10 +196,34 @@ for faction_key, faction_info in syndicate_mods.syndicates.items():
                                 valid_factions.append(f_name)
                         
                         if len(valid_factions) > 1:
-                            # Trigger our modal popup window if multiple factions qualify
                             show_faction_choice_modal(valid_factions, sold_qty=1, original_qty=target_listable_qty)
                         elif len(valid_factions) == 1:
-                            oph.linked_item_sold(session, available_mods[0], sold_quantity=1, original_quantity=target_listable_qty)
+                            target_faction = valid_factions[0]
+                            posted_items = oph.get_posted_quantity(target_faction)
+                            
+                            if posted_items > 0:
+                                oph.linked_item_sold(
+                                    session, 
+                                    available_mods[0], 
+                                    sold_quantity=target_listable_qty, 
+                                    original_quantity=posted_items
+                                )
+                                oph.set_posted_quantity(target_faction, posted_items - target_listable_qty)
+                                
+                                # 1. FIXED: Clear out the locked UI keys instead of trying to overwrite them.
+                                # This avoids the StreamlitAPIException completely.
+                                if f"slide_{target_faction}" in st.session_state:
+                                    del st.session_state[f"slide_{target_faction}"]
+                                if f"input_{target_faction}" in st.session_state:
+                                    del st.session_state[f"input_{target_faction}"]
+                                
+                                # 2. Force your initial load cache to fetch the fresh values on the next pass
+                                st.session_state.status_cache = oph.load_status()
+                                
+                                # 3. Trigger a clean reload to display the new positions safely
+                                st.rerun()
+                            else:
+                                st.error("It appears you have not set a number of mods to modify")
                         else:
                             st.error("No factions possess enough standing to process this sale transaction.")
                     else:

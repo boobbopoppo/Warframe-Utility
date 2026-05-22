@@ -13,6 +13,17 @@ def load_status():
     with open(STATUS_FILE, "r") as f:
         return json.load(f)
     
+def get_posted_quantity(faction_key):
+    status_data = load_status()
+    return status_data[faction_key].get("posted_quantity", 0)
+
+def set_posted_quantity(faction_key, quantity_change):
+    status_data = load_status()
+    current_quantity = status_data[faction_key].get("posted_quantity", 0)
+    new_quantity = quantity_change
+    status_data[faction_key]["posted_quantity"] = new_quantity
+    save_status(status_data)
+
 def save_status_from_state():
     """Extracts data values from the live UI and saves them to disk."""
     status_data = load_status()
@@ -51,8 +62,7 @@ def list_available_syndicate_mods(syndicate_list, syndicate_rank):
             available_slugs.extend(slugs)
     return available_slugs
 
-def post_offers_for_all_slugs(session, syndicate_slug_list, standing=0, syndicate_rank=0):
-    quantity = floor(standing/syndicate_slug_list["cost"])
+def post_offers_for_all_slugs(session, syndicate_slug_list, quantity, syndicate_rank=0):
     item_slug_list = list_available_syndicate_mods(syndicate_slug_list, syndicate_rank)
     if quantity > 0:
         for slug in item_slug_list:
@@ -63,35 +73,8 @@ def post_offers_for_all_slugs(session, syndicate_slug_list, standing=0, syndicat
             st.toast(f"Posted {quantity} {slug}s")
             time.sleep(0.3)
     else:
-        print(f"Not enough standing to post offers. Required: {syndicate_slug_list['cost']}, Available: {standing}")
-"""
-def process_faction_deduction(session, chosen_faction, sold_quantity, original_quantity):
-    # Updates the JSON file ledger and synchronously reduces active live listings on site.
-    status_data = load_status()
-    cost_per_mod = syndicate_mods.syndicates[chosen_faction]["cost"]
-    total_cost = cost_per_mod * sold_quantity
-    
-    # 1. Update persistent file database
-    status_data[chosen_faction]["standing"] -= total_cost
-    save_status(status_data)
-    
-    st.toast(f"Deducted {total_cost} standing from {chosen_faction}! Syncing market...")
-    
-    # 2. FIXED: Map and update live market listings via warframe.market API
-    # Extract every mod available at our current faction tier ranking level
-    current_rank = int(status_data[chosen_faction]["rank"])
-    to_update = list_available_syndicate_mods(syndicate_mods.syndicates[chosen_faction], current_rank)
-    
-    new_quantity = max(0, original_quantity - sold_quantity)
-    
-    for slug in to_update:
-        try:
-            # Call your live framework script function
-            update_order(session, slug, new_quantity=new_quantity)
-            print(f"Successfully reduced live offer for {slug} to x{new_quantity}")
-        except Exception as e:
-            print(f"Failed to update market asset {slug}: {e}")
-"""
+        print(f"Not enough standing to post offers. Required: {syndicate_slug_list['cost']}")
+
 def check_current_offers(session):
     response = session.get(f"{BASE_URL}/orders/my")
     if response.status_code == 200:
@@ -124,12 +107,13 @@ def post_offer(session, item_slug, platinum, quantity, rank):
 
     print(f"Posting {item_slug} (Rank {rank}) for {platinum}p...")
     response = session.post(f"{BASE_URL}/order", json=offer_data)
-
     if response.status_code in [200, 201]:
         print("Success! Order posted live to the market ledger.")
         order_info = response.json().get("data", {})
         print(f"Created Order ID: {order_info.get('id')}")
         return order_info
+    elif response.status_code == 403:
+        response = session.patch(f"{BASE_URL}/order", json=offer_data)
     else:
         print(f"Failed to post order. Error Code: {response.status_code}")
         print(f"Server message: {response.text}")
