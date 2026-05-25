@@ -10,10 +10,18 @@ from pathlib import Path
 
 BASE_URL = "https://api.warframe.market/v2"
 SCRIPT_DIR = Path(__file__).resolve().parent
-STATUS_FILE = SCRIPT_DIR / "syndicate_status.json"
-SETTINGS_FILE = SCRIPT_DIR / "settings.conf"
+DEFAULT_STATUS = SCRIPT_DIR / "syndicate_status.json"
+DATA_DIR = Path.home() / ".WarframeUtilityData"
+Path(DATA_DIR).mkdir(exist_ok=True)
+STATUS_FILE = DATA_DIR / "syndicate_status.json"
+SETTINGS_FILE = DATA_DIR / "settings.conf"
+
+def ensure_status_file_exists(status_file, default_status):
+    if not status_file.exists():
+        status_file.write_text(default_status.read_text())
 
 def load_status():
+    ensure_status_file_exists(STATUS_FILE, DEFAULT_STATUS)
     with open(STATUS_FILE, "r") as f:
         return json.load(f)
     
@@ -31,7 +39,7 @@ def set_posted_quantity(faction_key, quantity_change):
 def save_status_from_state():
     """Extracts data values from the live UI and saves them to disk."""
     status_data = load_status()
-    
+    ensure_status_file_exists(STATUS_FILE, DEFAULT_STATUS)
     for faction_key in syndicate_mods.syndicates.keys():
         # Read the explicit tracked state dictionary keys
         live_rank = st.session_state.get(f"rank_{faction_key}")
@@ -45,6 +53,7 @@ def save_status_from_state():
         json.dump(status_data, f, indent=4)
 
 def save_status(data):
+    ensure_status_file_exists(STATUS_FILE, DEFAULT_STATUS)
     with open(STATUS_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
