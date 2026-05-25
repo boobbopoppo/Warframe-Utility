@@ -5,9 +5,12 @@ from math import floor
 import requests
 import syndicate_mods
 import streamlit as st
+from pathlib import Path
+
 
 BASE_URL = "https://api.warframe.market/v2"
-STATUS_FILE = "syndicate_status.json"
+SCRIPT_DIR = Path(__file__).resolve().parent
+STATUS_FILE = SCRIPT_DIR / "syndicate_status.json"
 
 def load_status():
     with open(STATUS_FILE, "r") as f:
