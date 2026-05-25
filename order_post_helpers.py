@@ -229,12 +229,12 @@ BASE_URL = "https://api.warframe.market/v2"
 
 def login():
     try:
-        with open("settings.conf", "r") as file:
+        with open(f"{SCRIPT_DIR}/settings.conf", "r") as file:
             jwt_token = file.readline().strip()
     except FileNotFoundError:
         # Create empty placeholder file so subsequent runs don't crash
         try:
-            with open("settings.conf", "w") as file:
+            with open(f"{SCRIPT_DIR}/settings.conf", "w") as file:
                 file.write("")
         except Exception:
             pass
