@@ -37,6 +37,7 @@ if session is None:
         * In the left sidebar, expand **Cookies** and select `https://warframe.market`.
         * Find the cookie named **`JWT`** (all capitals).
         * Double-click the **Value** column of the `JWT` row and copy it.
+        * ATTENTION: THE JWT COOKIE IS SENSITIVE INFORMATION. DO NOT SHARE IT WITH ANYONE. IT GRANTS FULL ACCESS TO YOUR ACCOUNT. *
         """)
         
         st.info("💡 **Tip:** The token is a long, randomized string of letters and numbers.")
