@@ -11,6 +11,7 @@ from pathlib import Path
 BASE_URL = "https://api.warframe.market/v2"
 SCRIPT_DIR = Path(__file__).resolve().parent
 STATUS_FILE = SCRIPT_DIR / "syndicate_status.json"
+SETTINGS_FILE = SCRIPT_DIR / "settings.conf"
 
 def load_status():
     with open(STATUS_FILE, "r") as f:
@@ -229,12 +230,12 @@ BASE_URL = "https://api.warframe.market/v2"
 
 def login():
     try:
-        with open("settings.conf", "r") as file:
+        with open(SETTINGS_FILE, "r") as file:
             jwt_token = file.readline().strip()
     except FileNotFoundError:
         # Create empty placeholder file so subsequent runs don't crash
         try:
-            with open("settings.conf", "w") as file:
+            with open(SETTINGS_FILE, "w") as file:
                 file.write("")
         except Exception:
             pass
@@ -297,7 +298,7 @@ def save_token(jwt_token):
             session.accountName = profile_data.get("slug", "Unknown Tenno")
             
             # If valid, write to settings.conf
-            with open("settings.conf", "w") as file:
+            with open(SETTINGS_FILE, "w") as file:
                 file.write(jwt_token)
             return session
     except Exception as e:
