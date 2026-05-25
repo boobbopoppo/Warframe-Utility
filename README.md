@@ -18,45 +18,23 @@ This utility automates the process of converting in-game Syndicate standing into
 
 ---
 
-## 🛠️ Planned Features & Logic
-
-### 1. Manual Ledger Sync
-Since Warframe does not provide public APIs for player standing, you manually input your current rank and standing balances into a local config file, which the program uses as its source of truth.
-
-### 2. Automated Undercutting
-The engine automatically scans active online sellers for each mod and sets your price to:
-
-$$\text{Your Price} = \text{Cheapest Online Price} - 1\text{p}$$
-
-### 3. Dynamic Quantity Scaling
-Your listing quantities are directly tied to your available standing. When you log a sale, the script recalculates your balance and updates all linked mods in that syndicate:
-
-* **Before Sale:** **100,000 standing** with *Steel Meridian* = Lists **4 copies** of every mod.
-* **After Sale:** You sell 1 mod, dropping you to **75,000 standing** = Automatically updates all remaining listings to **3 copies**.
-
-### 4. Price Monitor *(Planned)*
-A background routine to periodically check if you are being undercut and adjust your active prices to keep your listings competitive.
-
----
-
 ## 📅 Project Status
 
-This utility is currently in early prototyping. The core logic is undergoing testing, and **there is no current timeline for a stable release.**
+This utility is currently functional but need polishing. **there is no current timeline for a stable release.**
 
 What Works For Now:
-1) login to your warframe.market account via jwt token. The token needs to be taken from your browser:
-   - after loggin in via browser f12 to open inspect view
-   - find the storage tab
-   - on the left seleect cookies
-   - warframe.market
-   - there should be only one entry "JWT"
-   - copy the value inside the settings.conf file in the root of the project (if the file doesn't exist, create it)
-   - now you are logged in 
-1) post offer via script
-2) post all mods purchaseable via one syndicate (only the six that sell augments for now) in quantity compatible with your standing availability
-3) update or delete listing if you sell some or all the mods respectively
-4) use web interface to set standing for a syndicate, post all mods for syndicate with the click of a button
-5) sell mods for syndicate with the click of other button
+~~1) login to your warframe.market account via jwt token. The token needs to be taken from your browser:~~
+   ~~- after loggin in via browser f12 to open inspect view~~
+   ~~- find the storage tab~~
+   ~~- on the left seleect cookies~~
+   ~~- warframe.market~~
+   ~~- there should be only one entry "JWT"~~
+   ~~- copy the value inside the settings.conf file in the root of the project (if the file doesn't exist, create it)~~
+   ~~- now you are logged in ~~
+1) the utility checks automatically for a settings.conf file in root of project, with a jwt token inside. If the file, or the token are 
+   absent, or the jwt token is not valid, it takes you through the setup wizard (thanks to [JustMarkDev](https://github.com/JustMarkDev) for implementing this feature)
+2) use web interface to set standing for a syndicate, post all mods for syndicate with the click of a button
+3) sell mods for syndicate with the click of other button
 
 ## TODO
 
@@ -69,3 +47,4 @@ What Works For Now:
    ~~- error in the logic that recomputes the available standing after you sell mods~~
    ~~- the slider doesn't visually update after selling~~
 4) more functionalities, like mass post relics, post all relics sold by varzia and whatever comes to mind next
+5) rework interface (it sucks and streamlit is very uncomfortable to program with)

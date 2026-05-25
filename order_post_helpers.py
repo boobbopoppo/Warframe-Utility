@@ -9,7 +9,8 @@ from pathlib import Path
 
 
 BASE_URL = "https://api.warframe.market/v2"
-SCRIPT_DIR = Path(__file__).resolve().parent
+
+SCRIPT_DIR = Path(__file__).resolve().parent  # useful to ensure consistent file access regardless of current working directory
 STATUS_FILE = SCRIPT_DIR / "syndicate_status.json"
 
 def load_status():
